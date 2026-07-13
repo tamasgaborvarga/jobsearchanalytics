@@ -2,7 +2,7 @@
 
 A data-driven approach to tracking my own job search process in 2026. I treat my applications like any other business problem: collecting the data, measuring what matters, and visualizing the results.
 
-**[VIEW LIVE DASHBOARD](https://job-search-analytics.vtamasgabor.workers.dev/)**[cite: 1]
+**[VIEW LIVE DASHBOARD](https://job-search-analytics.vtamasgabor.workers.dev/)**
 
 ---
 
