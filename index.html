@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Job Search Analytics — Tamás Gábor Varga</title>
+<meta name="description" content="A data-driven look at my own job search — collecting, measuring and visualizing every application like any other business problem." />
+<meta name="color-scheme" content="light" />
+<meta name="theme-color" content="#f7f8fa" />
+<meta property="og:type" content="website" />
+<meta property="og:title" content="Job Search Analytics — Tamás Gábor Varga" />
+<meta property="og:description" content="I treat my own job search the way I'd treat any business problem — collecting, measuring and visualizing every application." />
+<meta property="og:url" content="https://job-search-analytics.vtamasgabor.workers.dev/" />
+<meta property="og:image" content="https://tamasgaborvarga.github.io/og-image.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:image" content="https://tamasgaborvarga.github.io/og-image.png" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%2316181d'/%3E%3Ctext%20x='16'%20y='22'%20font-family='Arial,sans-serif'%20font-size='13'%20font-weight='700'%20fill='white'%20text-anchor='middle'%3ETGV%3C/text%3E%3C/svg%3E" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #f7f8fa;
+    --bg-soft: #ffffff;
+    --card: #ffffff;
+    --border: #e3e7ee;
+    --text: #16181d;
+    --muted: #646874;
+    --accent: #16181d;
+    --accent-soft: rgba(22, 24, 29, 0.05);
+    --accent-text: #ffffff;
+    --shadow: rgba(26, 34, 51, 0.08);
+    --c-ink: #16181d;
+    --c-slate: #646874;
+    --c-gray: #b9c0cc;
+    --c-mist: #d8dde5;
+    --c-green: #2f9e78;   /* offer */
+    --c-amber: #e0a52e;   /* pending (yellow) */
+    --c-red:   #cc6b62;   /* rejected (softened for large fills; badges stay saturated) */
+    --c-blue:  #2f6fd0;   /* interview */
+    --c-ghost: #9aa3b2;   /* ghosted (silent 30d+) */
+    /* radius scale */
+    --r-sm: 10px; --r-md: 13px; --r-lg: 16px; --r-full: 999px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3 { font-family: 'Space Grotesk', 'Inter', sans-serif; line-height: 1.2; }
+  a { color: inherit; text-decoration: none; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+  button { font-family: inherit; cursor: pointer; }
+
+  /* ---- shell ---- */
+  .dash { max-width: 1340px; margin: 0 auto; padding: 16px 20px 22px; display: flex; flex-direction: column; gap: 14px; }
+
+  /* ---- topbar ---- */
+  .topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .tb-left { display: flex; align-items: center; gap: 14px; min-width: 0; }
+  .tb-left .mark {
+    flex: none; width: 40px; height: 40px; border-radius: var(--r-sm);
+    background: var(--accent); color: #fff; display: inline-flex; align-items: center; justify-content: center;
+  }
+  .tb-left h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.01em; }
+  .tb-left .tagline { font-size: 12px; color: var(--muted); margin-top: 1px; }
+  .tb-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-size: 12px; color: var(--muted);
+    border: 1px solid var(--border); border-radius: var(--r-full); padding: 5px 11px; background: var(--bg-soft);
+  }
+  .chip .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--c-green); box-shadow: 0 0 0 3px rgba(47,158,120,0.18); }
+  .tb-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 600; color: var(--text);
+    border: 1px solid var(--border); border-radius: var(--r-sm); padding: 7px 12px; background: var(--card);
+    transition: border-color .15s, background .15s, transform .15s;
+  }
+  .tb-btn:hover { border-color: var(--accent); transform: translateY(-1px); }
+  .tb-btn.solid { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .tb-btn svg { opacity: .8; }
+
+  /* ---- intro / framing ---- */
+  .intro {
+    background: var(--card); border: 1px solid var(--border); border-left: 3px solid var(--accent);
+    border-radius: var(--r-md); padding: 12px 16px; font-size: 13px; color: var(--muted); line-height: 1.55;
+  }
+  .intro strong { color: var(--text); font-weight: 600; }
+
+  /* ---- KPI strip ---- */
+  .kpi-strip { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
+  .kpi {
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--r-md); padding: 13px 15px;
+    transition: border-color .15s, transform .15s, box-shadow .15s; min-width: 0;
+  }
+  .kpi:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 8px 20px var(--shadow); }
+  .kpi .k-label { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .kpi .k-val { font-family: 'Space Grotesk'; font-size: 27px; font-weight: 700; letter-spacing: -0.02em; margin-top: 5px; line-height: 1; }
+  .kpi .k-val .unit { font-size: 14px; color: var(--muted); font-weight: 600; margin-left: 1px; }
+  .kpi .k-sub { font-size: 11px; color: var(--muted); margin-top: 6px; line-height: 1.35; }
+  .kpi.is-muted .k-val { color: var(--muted); }
+
+  /* ---- chart grid ---- */
+  .grid { display: grid; grid-template-columns: repeat(6, 1fr); grid-template-rows: 1fr 1fr; gap: 14px; }
+  .panel.span2 { grid-column: span 2; }
+  .panel.span3 { grid-column: span 3; }
+  .panel.span4 { grid-column: span 4; }
+  .panel {
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--r-md); padding: 14px 16px 12px;
+    display: flex; flex-direction: column; min-width: 0; min-height: 0;
+  }
+  .panel .p-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+  .panel h3 { font-size: 14px; font-weight: 700; }
+  .panel .p-sub { font-size: 11px; color: var(--muted); white-space: nowrap; }
+  .p-foot { font-size: 10.5px; color: var(--muted); margin-top: 8px; display: flex; align-items: center; gap: 6px; }
+  .p-foot .sw-ghost { width: 9px; height: 9px; border-radius: 3px; background: var(--c-ghost); flex: none; }
+  .p-foot .sw-blue { width: 9px; height: 9px; border-radius: 3px; background: var(--c-blue); flex: none; }
+  .canvas-box { position: relative; width: 100%; height: 200px; flex: 1; min-height: 0; }
+
+  /* ---- sankey (application flow) ---- */
+  .sankey-box { position: relative; width: 100%; flex: 1; min-height: 0; }
+  .sankey-box svg { width: 100%; height: 100%; display: block; }
+  .sankey-box text { font-variant-numeric: tabular-nums; }
+
+  /* ---- flow list (mobile/stacked fallback for the Sankey) ---- */
+  .flow-list { display: none; }
+  .fl-total { font-family: 'Space Grotesk', 'Inter', sans-serif; font-weight: 700; font-size: 15px; margin-bottom: 12px; }
+  .fl-row { margin: 9px 0; }
+  .fl-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 12.5px; color: var(--muted); margin-bottom: 4px; }
+  .fl-head b { color: var(--text); font-family: 'Space Grotesk', 'Inter', sans-serif; font-variant-numeric: tabular-nums; }
+  .fl-track { background: var(--accent-soft); border-radius: 6px; height: 10px; overflow: hidden; }
+  .fl-bar { display: block; height: 100%; border-radius: 6px; min-width: 3px; }
+  .fl-sub { margin: 6px 0 10px 12px; padding-left: 12px; border-left: 2px solid var(--border); }
+  .fl-sub .fl-head { font-size: 12px; }
+
+  /* ---- status donut + value legend (legend stacks below the donut) ---- */
+  .donut-row { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 6px; }
+  .donut-row .canvas-box { flex: 1; width: 100%; min-height: 0; }
+  .donut-legend { list-style: none; display: flex; flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 4px 12px; }
+  .donut-legend li { display: flex; align-items: center; gap: 7px; font-size: 12px; }
+  .donut-legend .sw { width: 11px; height: 11px; border-radius: 3px; flex: none; }
+  .donut-legend .ll { color: var(--muted); flex: none; }
+  .donut-legend .lv { font-family: 'Space Grotesk'; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .donut-legend .lp { color: var(--muted); font-size: 11px; min-width: 32px; text-align: right; }
+
+  /* ---- funnel ---- */
+  .funnel { display: flex; flex-direction: column; gap: 8px; flex: 1; justify-content: center; }
+  .fn-row { display: grid; grid-template-columns: 116px 1fr 30px; gap: 12px; align-items: center; }
+  .fn-label { font-size: 12px; color: var(--muted); font-weight: 500; }
+  .fn-label .fn-pct { display: block; font-size: 10.5px; color: var(--muted); margin-top: 1px; }
+  .fn-bar-track { position: relative; background: var(--accent-soft); border-radius: 7px; height: 30px; overflow: hidden; }
+  .fn-bar { height: 100%; border-radius: 7px; min-width: 3px; transition: width .9s cubic-bezier(.2,.7,.2,1); }
+  .fn-val { font-family: 'Space Grotesk'; font-weight: 700; font-size: 14px; text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* ---- mini stats (rejection panel) ---- */
+  .stat-row { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 8px; }
+  .stat .s-val { font-family: 'Space Grotesk'; font-size: 17px; font-weight: 700; }
+  .stat .s-lab { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+
+  /* ---- modal ---- */
+  .modal { position: fixed; inset: 0; z-index: 100; display: none; align-items: center; justify-content: center; padding: 20px; }
+  .modal.open { display: flex; }
+  .modal .backdrop { position: absolute; inset: 0; background: rgba(16,18,23,0.42); backdrop-filter: blur(2px); }
+  .modal .dialog {
+    position: relative; background: var(--card); border: 1px solid var(--border); border-radius: var(--r-lg);
+    width: min(840px, 94vw); max-height: 88vh; display: flex; flex-direction: column;
+    box-shadow: 0 30px 70px rgba(26,34,51,0.28); animation: pop .18s ease;
+  }
+  @keyframes pop { from { transform: translateY(8px) scale(.98); opacity: 0; } to { transform: none; opacity: 1; } }
+  .dialog > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 22px; border-bottom: 1px solid var(--border); }
+  .dialog > header h2 { font-size: 18px; font-weight: 700; }
+  .dialog > header .m-sub { font-size: 12px; color: var(--muted); }
+  .x-btn { flex: none; width: 34px; height: 34px; border-radius: var(--r-sm); border: 1px solid var(--border); background: var(--card); color: var(--muted); display: inline-flex; align-items: center; justify-content: center; transition: border-color .15s, color .15s; }
+  .x-btn:hover { border-color: var(--accent); color: var(--text); }
+  .dialog .content { padding: 18px 22px 22px; overflow: auto; }
+
+  .note h4 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--accent); margin: 18px 0 8px; }
+  .note h4:first-child { margin-top: 0; }
+  .note ul { margin: 0; padding-left: 18px; }
+  .note li { font-size: 13px; color: var(--muted); margin: 6px 0; line-height: 1.55; }
+  .note li strong { color: var(--text); }
+  .flag { background: rgba(192,138,62,0.10); border: 1px solid rgba(192,138,62,0.35); border-radius: var(--r-sm); padding: 12px 14px; margin-top: 6px; }
+  .flag p { font-size: 13px; color: #7a5420; line-height: 1.5; }
+
+  /* ---- table ---- */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th {
+    position: sticky; top: 0; background: var(--bg-soft); z-index: 1;
+    text-align: left; font-weight: 600; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.05em; font-size: 11px;
+    padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: nowrap;
+  }
+  tbody td { padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--accent-soft); }
+  .badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: var(--r-full); white-space: nowrap; }
+  .b-pending { background: rgba(224,165,46,0.16); color: #8a6410; }
+  .b-rejected { background: rgba(209,72,61,0.12); color: #a5392f; }
+  .b-interview { background: rgba(47,111,208,0.13); color: #28579f; }
+  .b-inbound { background: rgba(100,104,116,0.12); color: var(--c-slate); }
+  .b-ghost { background: rgba(122,132,148,0.16); color: #586273; }
+  td.num { font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; }
+
+  /* status panel: compact header/footnote so the donut gets more room */
+  .donut-panel .p-head { margin-bottom: 5px; }
+  .donut-panel .p-foot { justify-content: center; margin-top: 4px; font-size: 10px; }
+
+  /* ============ FIXED, NO-SCROLL DASHBOARD (desktop) ============ */
+  @media (min-width: 1024px) and (min-height: 700px) {
+    body { height: 100vh; overflow: hidden; }
+    .dash { height: 100vh; }
+    .grid { flex: 1; min-height: 0; }
+    .canvas-box { height: auto; }
+  }
+
+  /* ============ STACKED / SCROLL (tablet & mobile) ============ */
+  @media (max-width: 1023px), (max-height: 699px) {
+    .kpi-strip { grid-template-columns: repeat(3, 1fr); }
+    .grid { grid-template-columns: 1fr 1fr; grid-template-rows: none; }
+    .panel.span2, .panel.span3, .panel.span4 { grid-column: span 1; }
+    .canvas-box { height: 230px; }
+    .donut-row .canvas-box { height: 230px; }
+    /* Sankey SVG doesn't scale down legibly — swap to the readable flow list */
+    .sankey-box { height: auto; flex: none; }
+    .sankey-box svg { display: none; }
+    .flow-list { display: block; }
+  }
+
+  /* ---- phones ---- */
+  @media (max-width: 680px) {
+    .dash { padding: 14px 14px 22px; gap: 12px; }
+    .topbar { gap: 10px; }
+    .tb-left { gap: 11px; }
+    .tb-left h1 { font-size: 18px; }
+    .tb-left .tagline { display: none; }
+    .tb-right { gap: 7px; }
+    .tb-right .chip { display: none; }            /* snapshot/status live in Methodology */
+    .tb-btn { padding: 7px 11px; font-size: 12px; }
+
+    .kpi-strip { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .kpi { padding: 12px 13px; }
+    .kpi .k-val { font-size: 25px; }
+
+    .grid { grid-template-columns: 1fr; }
+    .canvas-box { height: 220px; }
+
+    /* status donut: stack the value legend under the chart */
+    .donut-row { flex-direction: column; align-items: stretch; gap: 10px; }
+    .donut-row .canvas-box { height: 210px; }
+    .donut-legend { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 8px 18px; min-width: 0; }
+    .donut-legend li { font-size: 12px; }
+    .donut-legend .ll { flex: none; }
+
+    /* funnel: give the bar more room */
+    .fn-row { grid-template-columns: 96px 1fr 26px; gap: 10px; }
+
+    /* data log → stacked cards (no horizontal clipping on phones) */
+    .dialog > header { padding: 15px 16px; }
+    .dialog .content { padding: 14px 14px 18px; }
+    table, tbody, tr, td { display: block; width: 100%; }
+    thead { display: none; }
+    tbody tr {
+      border: 1px solid var(--border); border-radius: var(--r-md);
+      padding: 11px 13px; margin-bottom: 10px; background: var(--card);
+    }
+    tbody tr:hover { background: var(--card); }
+    tbody tr:last-child td { border-bottom: 0; }
+    tbody td {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 14px; padding: 5px 0; border: 0; font-size: 13px; text-align: right;
+    }
+    tbody td::before {
+      content: attr(data-label); flex: none; text-align: left;
+      font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em;
+      font-weight: 600; color: var(--muted);
+    }
+    tbody td:empty { display: none; }
+    /* role = card title: full width, no label, emphasised */
+    tbody td[data-label="Role"] {
+      display: block; font-size: 14px; font-weight: 600; color: var(--text);
+      text-align: left; padding: 0 0 8px; margin-bottom: 6px;
+      border-bottom: 1px solid var(--border);
+    }
+    tbody td[data-label="Role"]::before { display: none; }
+    tbody td.num { color: var(--text); font-weight: 500; }
+  }
+
+  /* ---- very small phones ---- */
+  @media (max-width: 380px) {
+    .kpi-strip { grid-template-columns: 1fr 1fr; }
+    .kpi .k-val { font-size: 23px; }
+    .tb-left h1 { font-size: 17px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, .fn-bar { transition: none !important; animation: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="dash">
+
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <div class="tb-left">
+      <span class="mark"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m7 14 3-3 3 3 5-6"/></svg></span>
+      <div>
+        <h1>Job Search Analytics</h1>
+        <p class="tagline">Tracking my job search like any business problem — collect, measure, visualise.</p>
+      </div>
+    </div>
+    <div class="tb-right">
+      <span class="chip"><span class="dot"></span> Search ongoing</span>
+      <span class="chip" id="snap-chip">Snapshot 13 Jul 2026</span>
+      <button class="tb-btn" data-modal="modal-method"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></svg> Methodology</button>
+      <button class="tb-btn solid" data-modal="modal-data"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 4v16"/></svg> Data</button>
+      <a class="tb-btn" href="https://tamasgaborvarga.github.io/">← Portfolio</a>
+    </div>
+  </header>
+
+  <!-- INTRO / FRAMING -->
+  <p class="intro">
+    <strong>I track my job search the way I'd tackle any business problem</strong> — collect the data,
+    measure what matters, visualise it, and steer with evidence instead of gut feel. I also do it to
+    <strong>read the current job market</strong> and understand it better. Every number here is
+    computed live from my own application log; company names are removed, only city and role title are shown.
+  </p>
+
+  <!-- KPI STRIP -->
+  <div class="kpi-strip">
+    <div class="kpi">
+      <div class="k-label">Applications</div>
+      <div class="k-val" id="kpi-total">—</div>
+      <div class="k-sub" id="kpi-total-sub">—</div>
+    </div>
+    <div class="kpi">
+      <div class="k-label">Interview conv.</div>
+      <div class="k-val" id="kpi-conv">—</div>
+      <div class="k-sub" id="kpi-conv-sub">—</div>
+    </div>
+    <div class="kpi">
+      <div class="k-label">Response rate</div>
+      <div class="k-val" id="kpi-resp">—</div>
+      <div class="k-sub" id="kpi-resp-sub">—</div>
+    </div>
+    <div class="kpi">
+      <div class="k-label">Avg → rejection</div>
+      <div class="k-val" id="kpi-rej">—</div>
+      <div class="k-sub" id="kpi-rej-sub">—</div>
+    </div>
+    <div class="kpi">
+      <div class="k-label">Active pipeline</div>
+      <div class="k-val" id="kpi-active">—</div>
+      <div class="k-sub" id="kpi-active-sub">—</div>
+    </div>
+    <div class="kpi is-muted">
+      <div class="k-label">Offers</div>
+      <div class="k-val" id="kpi-offers">—</div>
+      <div class="k-sub">Search ongoing</div>
+    </div>
+  </div>
+
+  <!-- CHART GRID -->
+  <div class="grid">
+
+    <div class="panel span4">
+      <div class="p-head"><h3>Application flow</h3><span class="p-sub">where every application ends up · ghosted = no reply in 30+ days</span></div>
+      <div class="sankey-box"><svg id="sankey" preserveAspectRatio="xMidYMid meet"></svg><div class="flow-list" id="flowList"></div></div>
+    </div>
+
+    <div class="panel span2">
+      <div class="p-head"><h3>Applications over time</h3><span class="p-sub">per week</span></div>
+      <div class="canvas-box"><canvas id="chartWeekly"></canvas></div>
+    </div>
+
+    <div class="panel span2">
+      <div class="p-head"><h3>By location</h3><span class="p-sub">city / region</span></div>
+      <div class="canvas-box"><canvas id="chartLoc"></canvas></div>
+    </div>
+
+    <div class="panel span2">
+      <div class="p-head"><h3>By role family</h3><span class="p-sub">my grouping</span></div>
+      <div class="canvas-box"><canvas id="chartFamily"></canvas></div>
+      <p class="p-foot"><span class="sw-blue"></span> Blue = family produced ≥1 interview</p>
+    </div>
+
+    <div class="panel span2">
+      <div class="p-head"><h3>Time to rejection</h3><span class="p-sub">n = <span id="rej-n">—</span></span></div>
+      <div class="canvas-box"><canvas id="chartRejDist"></canvas></div>
+      <div class="stat-row">
+        <div class="stat"><span class="s-val" id="st-mean">—</span><div class="s-lab">Mean</div></div>
+        <div class="stat"><span class="s-val" id="st-median">—</span><div class="s-lab">Median</div></div>
+        <div class="stat"><span class="s-val" id="st-min">—</span><div class="s-lab">Fastest</div></div>
+        <div class="stat"><span class="s-val" id="st-max">—</span><div class="s-lab">Slowest</div></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ===== DATA MODAL ===== -->
+<div class="modal" id="modal-data" aria-hidden="true">
+  <div class="backdrop" data-close></div>
+  <div class="dialog" role="dialog" aria-modal="true" aria-label="Application data">
+    <header>
+      <div>
+        <h2>The underlying log</h2>
+        <p class="m-sub">All <span id="tbl-count">69</span> tracked applications, anonymized — only city, role and dates.</p>
+      </div>
+      <button class="x-btn" data-close aria-label="Close"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </header>
+    <div class="content">
+      <table>
+        <thead><tr><th>Role</th><th>Location</th><th>Status</th><th>Applied</th><th>Decision</th><th>Days</th></tr></thead>
+        <tbody id="tbl-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ===== METHODOLOGY MODAL ===== -->
+<div class="modal" id="modal-method" aria-hidden="true">
+  <div class="backdrop" data-close></div>
+  <div class="dialog" role="dialog" aria-modal="true" aria-label="Methodology">
+    <header>
+      <div>
+        <h2>Methodology &amp; framing</h2>
+        <p class="m-sub" id="meth-window">—</p>
+      </div>
+      <button class="x-btn" data-close aria-label="Close"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </header>
+    <div class="content note">
+      <p style="font-size:14px;color:var(--muted);line-height:1.6">
+        I treat my own job search the way I'd treat any business problem — collecting the data,
+        measuring what matters and visualizing it, so decisions come from evidence rather than gut feel.
+        I also do it to read the current job market and understand it better. Every number is computed
+        live from my application log; company names are removed, only city and role title are shown.
+      </p>
+
+      <h4>How the metrics are calculated</h4>
+      <ul>
+        <li><strong>Interview conversion</strong> = applications that reached an interview ÷ outbound applications sent. All interviews came from applications I initiated.</li>
+        <li><strong>Response rate</strong> = applications that got any reply (interview invite or rejection) ÷ outbound applications — a yes/no measure.</li>
+        <li><strong>Avg days to rejection</strong> uses only rejections where I have both the application date and the rejection-email date. Median sits well below the mean — most rejections are fast, a few drag the average up.</li>
+        <li><strong>Status</strong> reflects the final state — an application that reached an interview but was later rejected counts as <em>rejected</em>, while still appearing in the interview funnel.</li>
+        <li><strong>Ghosted</strong> = an outbound application still with no reply <strong>30+ days</strong> after I applied. Since the median rejection lands in <span id="meth-med">10.5 days</span>, a month of silence almost always means a silent no. Ghosted applications are split out of "awaiting", so the active pipeline isn't inflated by dead leads.</li>
+      </ul>
+
+      <h4>What I deliberately left out — no fake precision</h4>
+      <div class="flag">
+        <p><strong>Avg days to interview invite:</strong> I never logged interview-invite timestamps, so there is no honest number to show — I'm not estimating it.</p>
+      </div>
+      <ul>
+        <li>The <strong>response rate</strong> can't separate a personal email from an automated rejection — I have no data flagging that, so I don't claim it.</li>
+        <li>The <strong>30-day "ghosted" cutoff is my assumption</strong>, not a signal from the company — a few may still reply late. That's why I flag them as ghosted, never as a formal rejection.</li>
+        <li>No "fit score" or subjective quality rating, and no company names — only city + role title.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  // ---------------------------------------------------------------------------
+  // SOURCE DATA — anonymized. Company names intentionally omitted.
+  //   loc/pos/applied/rejected(date|null)/rej(terminal)/interview(reached)/inbound
+  // ---------------------------------------------------------------------------
+  var DATA = [
+    { loc:"Budapest", pos:"Solution Designer", applied:"2026-04-30", rejected:null, rej:true, interview:true, inbound:false },
+    { loc:"Budapest", pos:"Project Management Office Specialist", applied:"2026-05-06", rejected:null, rej:true, interview:false, inbound:false },
+    { loc:"Budapest", pos:"KYC / Due Diligence Operations Analyst", applied:"2026-05-07", rejected:"2026-05-11", rej:true, interview:false, inbound:false },
+    { loc:"Budapest", pos:"Business Analyst", applied:"2026-05-07", rejected:null, rej:true, interview:false, inbound:false },
+    { loc:"Budapest", pos:"IT Business Analyst", applied:"2026-05-11", rejected:"2026-06-09", rej:true, interview:false, inbound:false },
+    { loc:"Budapest", pos:"IT Business Analyst", applied:"2026-05-12", rejected:null, rej:true, interview:false, inbound:false },
+    { loc:"Budapest", pos:"Business Analyst", applied:"2026-05-12", rejected:null, rej:false, interview:false, inbound:false },
+    { loc:"Budapest", pos:"Process Analyst", applied:"2026-05-12", rejected:"2026-05-13", rej:true, interview:false, inbound:false },
+    { loc:"Budapest", pos:"Business Analyst", applied:"2026-05-13", rejected:null, rej:false, interview:false, inbound:false },
+    { loc:"Budapest", pos:"Junior Business Analyst", applied:"2026-05-13", rejected:"2026-05-18", rej:true, interview:false, inbound:false },
+    { loc:"Budapest", pos:"Process Reengineering Expert", applied:"2026-05-14", rejected:null, rej:true, interview:false, inbound:false },
+    { loc:"Budapest", pos:"Strategy Analyst", applied:"2026-05-15", rejected:"2026-05-18", rej:true, interview:false, inbound:false },
+    { loc:"Budapest", pos:"Customer Analytics Expert", applied:"2026-05-15", rejected:"2026-05-20", rej:true, interview:false, inbound:false },
+    { loc:"Budapest", pos:"Medior Business Analyst", applied:"2026-05-15", rejected:"2026-06-22", rej:true, interview:false, inbound:false },
+    { loc:"Schrems, Austria", pos:"Process Engineer", applied:"2026-05-15", rejected:null, rej:true, interview:false, inbound:true },
+    { loc:"Budapest", pos:"Supply Chain Planner", applied:"2026-05-18", rejected:"2026-06-01", rej:true, interview:false, inbound:false },
+    { loc:"Budapest", pos:"Data Analyst", applied:"2026-05-18", rejected:null, rej:false, interview:false, inbound:false },
+    { loc:"Budapest", pos:"IT Event Support Specialist", applied:"2026-05-18", rejected:"2026-06-26", rej:true, interview:false, inbound:false },
+    { loc:"Budapest", pos:"Hotel Investment Analyst", applied:"2026-05-18", rejected:null, rej:false, interview:false, inbound:false },
+    { loc:"Budapest", pos:"Lean Engineer", applied:"2026-05-18", rejected:"2026-06-22", rej:true, interview:true, inbound:false },
+    { loc:"Budapest", pos:"AI Strategy & Portfolio Manager", applied:"2026-05-18", rejected:null, rej:true, interview:false, inbound:false },
+    { loc:"Budapest", pos:"Financial Analyst", applied:"2026-05-19", rejected:null, rej:true, interview:false, inbound:false },
+    { loc:"Budapest", pos:"Expense Management Analyst", applied:"2026-05-20", rejected:null, rej:false, interview:false, inbound:false },
+    { loc:"Budapest", pos:"Business Analyst — Automation, Analytics & AI", applied:"2026-05-23", rejected:null, rej:false, interview:false, inbound:false },
+    { loc:"Budapest", pos:"Controller / Business Analyst", applied:"2026-05-23", rejected:null, rej:false, interview:false, inbound:false },
+    { loc:"Budapest", pos:"Business Development Representative", applied:"2026-05-23", rejected:"2026-06-01", rej:true, interview:false, inbound:false },
+    { loc:"Budapest", pos:"Junior Business Process Improvement Expert", applied:"2026-05-27", rejected:"2026-06-05", rej:true, interview:false, inbound:false },
+    { loc:"Tallinn, Estonia", pos:"Customer Support Specialist", applied:"2026-05-28", rejected:null, rej:true, interview:false, inbound:false },
+    { loc:"Budapest", pos:"Junior Product Owner", applied:"2026-05-28", rejected:"2026-07-02", rej:true, interview:true, inbound:false },
+    { loc:"Budapest", pos:"Medior Business Analyst", applied:"2026-06-02", rejected:"2026-06-22", rej:true, interview:false, inbound:false },
+    { loc:"Budapest", pos:"Junior Strategic Buyer", applied:"2026-06-02", rejected:"2026-06-29", rej:true, interview:false, inbound:false },
+    { loc:"Budapest", pos:"Process Workflow Consultant", applied:"2026-06-02", rejected:"2026-06-08", rej:true, interview:false, inbound:false },
+    { loc:"Budapest", pos:"Junior IT Portfolio Specialist", applied:"2026-06-02", rejected:null, rej:false, interview:false, inbound:false },
+    { loc:"Budapest", pos:"Junior Financial Content Creator", applied:"2026-06-03", rejected:null, rej:false, interview:false, inbound:false },
+    { loc:"Budapest", pos:"R&D Business Process Specialist", applied:"2026-06-03", rejected:"2026-06-08", rej:true, interview:false, inbound:false },
+    { loc:"Budapest", pos:"Software Cost Engineer", applied:"2026-06-04", rejected:"2026-06-18", rej:true, interview:false, inbound:false },
+    { loc:"Budapest", pos:"Process Analyst", applied:"2026-06-08", rejected:null, rej:false, interview:false, inbound:false },
+    { loc:"Budapest", pos:"CSV (Validation) Business Analyst", applied:"2026-06-08", rejected:null, rej:false, interview:false, inbound:false },
+    { loc:"Budapest", pos:"Continuous Improvement Specialist", applied:"2026-06-08", rejected:null, rej:true, interview:false, inbound:false },
+    { loc:"Budapest", pos:"Operational Buyer", applied:"2026-06-09", rejected:"2026-06-26", rej:true, interview:false, inbound:false },
+    { loc:"Budapest", pos:"IT Support Specialist", applied:"2026-06-09", rejected:null, rej:false, interview:false, inbound:false },
+    { loc:"Budapest", pos:"Junior Consultant", applied:"2026-06-09", rejected:"2026-06-24", rej:true, interview:true, inbound:false },
+    { loc:"Budapest", pos:"Project Responsible", applied:"2026-06-09", rejected:null, rej:false, interview:false, inbound:false },
+    { loc:"Budapest", pos:"Business Specialist", applied:"2026-06-09", rejected:"2026-06-12", rej:true, interview:false, inbound:false },
+    { loc:"Budapest", pos:"Junior Back Office Associate", applied:"2026-06-09", rejected:null, rej:false, interview:true, inbound:false },
+    { loc:"Budapest", pos:"Specialist, Master Data Management", applied:"2026-06-09", rejected:null, rej:false, interview:false, inbound:false },
+    { loc:"Budapest", pos:"Junior Cybersecurity Consultant", applied:"2026-06-10", rejected:null, rej:false, interview:false, inbound:false },
+    { loc:"Hatvan", pos:"IT Business Analyst", applied:"2026-06-10", rejected:"2026-06-22", rej:true, interview:false, inbound:false },
+    { loc:"Budapest", pos:"Technical Change Project Coordinator", applied:"2026-06-11", rejected:null, rej:false, interview:false, inbound:false },
+    { loc:"Budapest", pos:"Junior 3rd Party Manufacturing Manager", applied:"2026-06-11", rejected:null, rej:false, interview:false, inbound:false },
+    { loc:"Budapest", pos:"Process Quality Analyst", applied:"2026-06-11", rejected:null, rej:false, interview:false, inbound:false },
+    { loc:"Budapest", pos:"Business Process Analyst", applied:"2026-06-11", rejected:null, rej:false, interview:false, inbound:false },
+    { loc:"Budapest", pos:"Junior Supplier Quality Engineer", applied:"2026-06-11", rejected:null, rej:false, interview:false, inbound:false },
+    { loc:"Budapest", pos:"Junior Product Manager", applied:"2026-06-12", rejected:null, rej:false, interview:false, inbound:false },
+    { loc:"Veresegyház", pos:"Change and Enablement Project Analyst", applied:"2026-06-16", rejected:null, rej:false, interview:false, inbound:false },
+    { loc:"Budapest", pos:"Project Management Officer (German)", applied:"2026-06-16", rejected:"2026-06-18", rej:true, interview:false, inbound:false },
+    { loc:"Budapest", pos:"Junior / Medior Requirements Engineer", applied:"2026-06-16", rejected:null, rej:false, interview:false, inbound:false },
+    { loc:"Budaörs", pos:"Senior Process Engineer", applied:"2026-06-22", rejected:null, rej:false, interview:false, inbound:true },
+    { loc:"Budapest", pos:"Energy Cost Forecasting Analyst", applied:"2026-06-25", rejected:null, rej:true, interview:false, inbound:false },
+    { loc:"Richmond, Virginia", pos:"Senior Manufacturing Engineer", applied:"2026-06-25", rejected:null, rej:false, interview:false, inbound:true },
+    { loc:"Dunaharaszti", pos:"Lean Engineer", applied:"2026-06-30", rejected:null, rej:false, interview:false, inbound:true },
+    { loc:"Budapest", pos:"Citizen AI Consultant", applied:"2026-07-01", rejected:null, rej:false, interview:false, inbound:false },
+    { loc:"Budapest", pos:"Medior AI Solution Consultant", applied:"2026-07-01", rejected:null, rej:false, interview:true, inbound:false },
+    { loc:"Remote", pos:"Business Operations & Analytics Specialist", applied:"2026-07-02", rejected:null, rej:false, interview:false, inbound:false },
+    { loc:"Budapest", pos:"Logistics & Operations Specialist", applied:"2026-07-02", rejected:"2026-07-10", rej:true, interview:false, inbound:false },
+    { loc:"Remote", pos:"Data Analyst", applied:"2026-07-06", rejected:null, rej:false, interview:false, inbound:false },
+    { loc:"Budapest", pos:"Business Analyst & PBI Developer", applied:"2026-07-07", rejected:null, rej:false, interview:false, inbound:false },
+    { loc:"Felsőlajos", pos:"Process Engineer", applied:"2026-07-08", rejected:null, rej:false, interview:false, inbound:true },
+    { loc:"Székesfehérvár", pos:"Manufacturing Process Engineer", applied:"2026-07-13", rejected:null, rej:false, interview:false, inbound:true }
+  ];
+
+  // ---- helpers --------------------------------------------------------------
+  var DAY = 86400000;
+  function d(s) { return new Date(s + "T00:00:00"); }
+  function diffDays(a, b) { return Math.round((d(b) - d(a)) / DAY); }
+  function fmt(s) { return d(s).toLocaleDateString("en-GB", { day: "numeric", month: "short" }); }
+  function pct(n, t) { return t ? (n / t) * 100 : 0; }
+  function median(a) { if (!a.length) return 0; var s = a.slice().sort(function (x, y) { return x - y; }); var m = Math.floor(s.length / 2); return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; }
+  function terminal(r) { return r.rej ? "rejected" : (r.interview ? "interview" : "pending"); }
+
+  // ---- ghosting: a pending application with no reply after GHOST_DAYS is treated as silently dead.
+  //   The 30-day cutoff is an assumption (median rejection ~10 d), not a company signal.
+  var SNAPSHOT = "2026-07-13";              // reference "today" for ageing
+  var GHOST_DAYS = 30;
+  var NOW = d(SNAPSHOT);
+  var snapLabel = NOW.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  function ageDays(r) { return Math.round((NOW - d(r.applied)) / DAY); }
+  function isGhosted(r) { return !r.rej && !r.interview && ageDays(r) > GHOST_DAYS; }
+  function statusOf(r) { return r.rej ? "rejected" : (r.interview ? "interview" : (isGhosted(r) ? "ghosted" : "awaiting")); }
+
+  // ---- derive ---------------------------------------------------------------
+  var total = DATA.length;
+  var inbound = DATA.filter(function (r) { return r.inbound; });
+  var outbound = DATA.filter(function (r) { return !r.inbound; });
+  var reachedInterview = outbound.filter(function (r) { return r.interview; }).length;
+  var responded = outbound.filter(function (r) { return r.rej || r.interview; }).length;
+  var convRate = pct(reachedInterview, outbound.length);
+  var respRate = pct(responded, outbound.length);
+
+  var rejGaps = DATA.filter(function (r) { return r.rej && r.rejected; })
+                    .map(function (r) { return diffDays(r.applied, r.rejected); })
+                    .filter(function (n) { return n >= 0; });
+  var rejMean = rejGaps.reduce(function (a, b) { return a + b; }, 0) / rejGaps.length;
+  var rejMed = median(rejGaps);
+
+  var sc = { awaiting: 0, ghosted: 0, rejected: 0, interview: 0, offer: 0 };
+  DATA.forEach(function (r) { sc[statusOf(r)]++; });
+  var pendingTotal = sc.awaiting + sc.ghosted;
+  var activeCount = sc.awaiting + sc.interview;   // ghosted no longer counts as active
+
+  var dates = DATA.map(function (r) { return d(r.applied); }).sort(function (a, b) { return a - b; });
+  var first = dates[0], last = dates[dates.length - 1];
+  var spanDays = Math.round((last - first) / DAY);
+
+  // ---- theme ----------------------------------------------------------------
+  var cs = getComputedStyle(document.documentElement);
+  var C = {}; ["ink","slate","gray","mist","green","amber","red","blue","ghost"].forEach(function (k) { C[k] = cs.getPropertyValue("--c-" + k).trim(); });
+  C.border = cs.getPropertyValue("--border").trim();
+  Chart.defaults.font.family = "'Inter', system-ui, sans-serif";
+  Chart.defaults.font.size = 11;
+  Chart.defaults.color = cs.getPropertyValue("--muted").trim();
+  Chart.defaults.plugins.legend.display = false;
+  Chart.defaults.animation = { duration: 600 };
+  var tip = { backgroundColor: C.ink, padding: 9, cornerRadius: 7, displayColors: false, titleFont: { weight: "600" } };
+
+  // value labels for small bar charts — exact counts where bars are too short to read
+  var valueLabels = {
+    id: "valueLabels",
+    afterDatasetsDraw: function (chart) {
+      var ctx = chart.ctx, meta = chart.getDatasetMeta(0), data = chart.data.datasets[0].data;
+      var horiz = chart.options.indexAxis === "y";
+      ctx.save();
+      ctx.font = "600 11px 'Inter', sans-serif";
+      ctx.fillStyle = C.slate;
+      meta.data.forEach(function (el, i) {
+        var v = data[i]; if (v == null || v === 0) return;
+        if (horiz) { ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(v, el.x + 6, el.y); }
+        else { ctx.textAlign = "center"; ctx.textBaseline = "bottom"; ctx.fillText(v, el.x, el.y - 4); }
+      });
+      ctx.restore();
+    }
+  };
+
+  // ---- text / KPIs ----------------------------------------------------------
+  function set(id, v) { var el = document.getElementById(id); if (el) el.textContent = v; }
+  function html(id, v) { var el = document.getElementById(id); if (el) el.innerHTML = v; }
+
+  html("kpi-total", total);
+  set("kpi-total-sub", outbound.length + " outbound · " + inbound.length + " inbound");
+  html("kpi-conv", Math.round(convRate) + '<span class="unit">%</span>');
+  set("kpi-conv-sub", reachedInterview + " of " + outbound.length + " reached interview");
+  html("kpi-resp", Math.round(respRate) + '<span class="unit">%</span>');
+  set("kpi-resp-sub", responded + " of " + outbound.length + " got a reply");
+  html("kpi-rej", rejMean.toFixed(1) + '<span class="unit"> d</span>');
+  set("kpi-rej-sub", "median " + rejMed + " d · n=" + rejGaps.length);
+  html("kpi-active", activeCount);
+  set("kpi-active-sub", sc.awaiting + " awaiting · " + sc.interview + " interviewing · excludes " + sc.ghosted + " ghosted");
+  html("kpi-offers", sc.offer);
+
+  set("rej-n", rejGaps.length);
+  set("st-mean", rejMean.toFixed(1) + " d");
+  set("st-median", rejMed + " d");
+  set("st-min", Math.min.apply(null, rejGaps) + " d");
+  set("st-max", Math.max.apply(null, rejGaps) + " d");
+  set("tbl-count", total);
+  set("meth-med", rejMed + " days");
+  set("snap-chip", "Snapshot " + snapLabel);
+  set("meth-window", "Window: " + fmt(first.toISOString().slice(0,10)) + " – " + fmt(last.toISOString().slice(0,10)) + " (" + spanDays + " days) · snapshot " + snapLabel);
+
+  // ---- sankey: application flow ---------------------------------------------
+  // Honest flow at the granularity I actually track — no invented interview rounds.
+  //   Applications → {rejected w/o interview, reached interview, ghosted, awaiting}
+  //   Reached interview → {rejected after interview, still interviewing, offer}
+  (function () {
+    var svg = document.getElementById("sankey");
+    if (!svg) return;
+    var NS = "http://www.w3.org/2000/svg";
+
+    var rejNoIv  = DATA.filter(function (r) { return r.rej && !r.interview; }).length;
+    var ivReached = DATA.filter(function (r) { return r.interview; }).length;
+    var ivRej    = DATA.filter(function (r) { return r.interview && r.rej; }).length;
+    var ivActive = DATA.filter(function (r) { return r.interview && !r.rej; }).length;
+
+    // readable flow list — shown instead of the SVG on stacked/mobile layouts
+    var flow = document.getElementById("flowList");
+    if (flow) {
+      var maxTop = Math.max(rejNoIv, ivReached, sc.ghosted, sc.awaiting, 1);
+      function flRow(lab, v, color, max) {
+        return '<div class="fl-row"><div class="fl-head"><span>' + lab + '</span><b>' + v + '</b></div>' +
+               '<div class="fl-track"><span class="fl-bar" style="width:' + (v / max * 100) + '%;background:' + color + '"></span></div></div>';
+      }
+      var ivMax = ivReached || 1;
+      flow.innerHTML =
+        '<div class="fl-total"><b>' + total + '</b> applications</div>' +
+        flRow("Rejected — no interview", rejNoIv, C.red, maxTop) +
+        flRow("Reached interview", ivReached, C.blue, maxTop) +
+        '<div class="fl-sub">' +
+          flRow("Rejected after interview", ivRej, C.red, ivMax) +
+          flRow("Still interviewing", ivActive, C.blue, ivMax) +
+          flRow("Offer", sc.offer, C.green, ivMax) +
+        '</div>' +
+        flRow("Ghosted (no reply 30+ days)", sc.ghosted, C.ghost, maxTop) +
+        flRow("Awaiting", sc.awaiting, C.amber, maxTop);
+    }
+
+    var W = 720, H = 250, PADX = 14, PADY = 16, NW = 10, GAP = 8;
+
+    // column 1 (top → bottom) — order keeps ribbons from crossing
+    var col1 = [
+      { lab: "Reached interview", v: ivReached,   c: C.blue,  branch: true },
+      { lab: "Awaiting",          v: sc.awaiting,  c: C.amber },
+      { lab: "Ghosted",           v: sc.ghosted,   c: C.ghost },
+      { lab: "Rejected",          v: rejNoIv,      c: C.red }
+    ].filter(function (n) { return n.v > 0; });
+
+    var col2 = [
+      { lab: "Interviewing", v: ivActive, c: C.blue },
+      { lab: "Offer",        v: sc.offer, c: C.green },
+      { lab: "Rejected",     v: ivRej,    c: C.red }
+    ].filter(function (n) { return n.v > 0; });
+
+    var total = ivReached + sc.awaiting + sc.ghosted + rejNoIv; // = all applications
+    var scale = (H - 2 * PADY - (col1.length - 1) * GAP) / total;
+
+    var xApp = PADX, xMid = W * 0.40, xEndLabel = W - 150, xEnd = xEndLabel - NW;
+
+    function el(name, attrs) { var e = document.createElementNS(NS, name); for (var k in attrs) e.setAttribute(k, attrs[k]); return e; }
+    function link(x1, y1, x2, y2, w, color) {
+      var mx = (x1 + x2) / 2;
+      svg.appendChild(el("path", { d: "M" + x1 + "," + y1 + " C" + mx + "," + y1 + " " + mx + "," + y2 + " " + x2 + "," + y2,
+        fill: "none", stroke: color, "stroke-width": Math.max(w, 1), "stroke-opacity": 0.36 }));
+    }
+    function node(x, y, h, color) { svg.appendChild(el("rect", { x: x, y: y, width: NW, height: Math.max(h, 2), rx: 2.5, fill: color })); }
+    function text(x, y, s, o) {
+      o = o || {};
+      var t = el("text", { x: x, y: y, "font-size": o.size || 10.5, "text-anchor": o.anchor || "start", fill: o.fill || C.slate });
+      if (o.weight) t.setAttribute("font-weight", o.weight);
+      t.appendChild(document.createTextNode(s));
+      svg.appendChild(t);
+    }
+
+    svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+
+    // links col0 → col1 (source contiguous on the Applications node, targets stacked with gaps)
+    var srcY = PADY, tgtY = PADY, ivNode = null;
+    col1.forEach(function (n) {
+      var th = n.v * scale;
+      link(xApp + NW, srcY + th / 2, xMid, tgtY + th / 2, th, n.c);
+      n._y = tgtY; n._h = th;
+      if (n.branch) ivNode = n;
+      srcY += th; tgtY += th + GAP;
+    });
+
+    // links col1(interview) → col2, vertically centred on the interview node
+    if (ivNode && col2.length) {
+      var gaps2 = (col2.length - 1) * GAP;
+      var c2H = ivReached * scale + gaps2;
+      var t2 = Math.max(ivNode._y + ivNode._h / 2 - c2H / 2, PADY);
+      var s2 = ivNode._y;
+      col2.forEach(function (n) {
+        var th = n.v * scale;
+        link(xMid + NW, s2 + th / 2, xEnd, t2 + th / 2, th, n.c);
+        n._y = t2; n._h = th;
+        s2 += th; t2 += th + GAP;
+      });
+    }
+
+    // nodes
+    node(xApp, PADY, total * scale, C.slate);
+    col1.forEach(function (n) { node(xMid, n._y, n._h, n.c); });
+    col2.forEach(function (n) { node(xEnd, n._y, n._h, n.c); });
+
+    // labels
+    text(xApp, PADY - 5, "Applications " + total, { weight: 700, fill: C.ink, size: 11 });
+    col1.forEach(function (n) {
+      if (n.branch) text(xMid, n._y - 4, n.lab + " " + n.v, { fill: C.ink, weight: 600 });
+      else text(xMid + NW + 6, n._y + n._h / 2 + 3.5, n.lab + " " + n.v, { fill: C.slate });
+    });
+    col2.forEach(function (n) { text(xEndLabel + 4, n._y + n._h / 2 + 3.5, n.lab + " " + n.v, { fill: C.slate }); });
+  })();
+
+  // ---- rejection histogram --------------------------------------------------
+  var buckets = [
+    { lab: "≤3", t: function (n) { return n <= 3; } },
+    { lab: "4–7", t: function (n) { return n >= 4 && n <= 7; } },
+    { lab: "8–14", t: function (n) { return n >= 8 && n <= 14; } },
+    { lab: "15–21", t: function (n) { return n >= 15 && n <= 21; } },
+    { lab: "22+", t: function (n) { return n >= 22; } }
+  ];
+  new Chart(document.getElementById("chartRejDist"), {
+    type: "bar",
+    data: { labels: buckets.map(function (b) { return b.lab; }),
+            datasets: [{ data: buckets.map(function (b) { return rejGaps.filter(b.t).length; }), backgroundColor: C.red, borderRadius: 4, maxBarThickness: 38 }] },
+    options: { responsive: true, maintainAspectRatio: false,
+      plugins: { tooltip: Object.assign({}, tip, { callbacks: { title: function (c) { return c[0].label + " days"; }, label: function (c) { return c.parsed.y + " rejection" + (c.parsed.y === 1 ? "" : "s"); } } }) },
+      scales: { x: { grid: { display: false }, border: { display: false } },
+                y: { beginAtZero: true, grace: "18%", ticks: { precision: 0, stepSize: 2 }, grid: { color: C.border }, border: { display: false } } } },
+    plugins: [valueLabels]
+  });
+
+  // ---- weekly ---------------------------------------------------------------
+  function weekStart(date) { var x = new Date(date); var day = (x.getDay() + 6) % 7; x.setDate(x.getDate() - day); x.setHours(0,0,0,0); return x; }
+  var wk = {};
+  DATA.forEach(function (r) { var k = weekStart(d(r.applied)).toISOString().slice(0, 10); wk[k] = (wk[k] || 0) + 1; });
+  var wkeys = Object.keys(wk).sort();
+  new Chart(document.getElementById("chartWeekly"), {
+    type: "bar",
+    data: { labels: wkeys.map(function (k) { return fmt(k); }),
+            datasets: [{ data: wkeys.map(function (k) { return wk[k]; }), backgroundColor: C.ink, borderRadius: 4, maxBarThickness: 34 }] },
+    options: { responsive: true, maintainAspectRatio: false,
+      plugins: { tooltip: Object.assign({}, tip, { callbacks: { title: function (c) { return "Week of " + c[0].label; }, label: function (c) { return c.parsed.y + " application" + (c.parsed.y === 1 ? "" : "s"); } } }) },
+      scales: { x: { grid: { display: false }, border: { display: false }, ticks: { maxRotation: 0, autoSkip: false, font: { size: 10 } } },
+                y: { beginAtZero: true, grace: "12%", ticks: { precision: 0, stepSize: 5 }, grid: { color: C.border }, border: { display: false } } } },
+    plugins: [valueLabels]
+  });
+
+  // ---- location -------------------------------------------------------------
+  function region(loc) { if (loc === "Budapest") return "Budapest"; if (loc === "Remote") return "Remote"; if (/Austria|Estonia|Virginia|USA/.test(loc)) return "Abroad"; return "Other (HU)"; }
+  var order = ["Budapest", "Other (HU)", "Abroad", "Remote"], lm = {};
+  DATA.forEach(function (r) { var k = region(r.loc); lm[k] = (lm[k] || 0) + 1; });
+  new Chart(document.getElementById("chartLoc"), {
+    type: "bar",
+    data: { labels: order, datasets: [{ data: order.map(function (k) { return lm[k] || 0; }), backgroundColor: C.slate, borderRadius: 4, maxBarThickness: 22 }] },
+    options: { indexAxis: "y", responsive: true, maintainAspectRatio: false,
+      plugins: { tooltip: Object.assign({}, tip, { callbacks: { label: function (c) { return c.parsed.x + " application" + (c.parsed.x === 1 ? "" : "s"); } } }) },
+      scales: { x: { beginAtZero: true, grace: "10%", ticks: { precision: 0, stepSize: 10 }, grid: { color: C.border }, border: { display: false } },
+                y: { grid: { display: false }, border: { display: false } } } },
+    plugins: [valueLabels]
+  });
+
+  // ---- role family ----------------------------------------------------------
+  // Coarse, subjective buckets (first match wins). Labelled "my grouping" — no fake precision.
+  function roleFamily(p) {
+    if (/Business Analyst|Üzleti Elemző|Requirements Engineer/i.test(p)) return "Business Analyst";
+    if (/Product|Termékmenedzser|Owner/i.test(p)) return "Product";
+    if (/Buyer|Beszerző|Supply Chain|3rd Party Manufacturing|Procurement/i.test(p)) return "Buyer / Supply";
+    if (/Process|Lean|Reengineering|Workflow|Continuous Improvement|Manufacturing Engineer|Process Engineer|Cost Engineer|Quality Engineer/i.test(p)) return "Process / Eng.";
+    if (/Cyber|Master Data|IT Support|IT Event|Portfolio Specialist/i.test(p)) return "IT / Support";
+    if (/Consult|tanácsadó/i.test(p)) return "Consulting";
+    if (/Analyst|elemző|Analytics|Data/i.test(p)) return "Other analyst";
+    return "Other";
+  }
+  var fam = {};
+  DATA.forEach(function (r) {
+    var k = roleFamily(r.pos);
+    if (!fam[k]) fam[k] = { applied: 0, interview: 0, rejected: 0 };
+    fam[k].applied++;
+    if (r.interview) fam[k].interview++;
+    if (r.rej) fam[k].rejected++;
+  });
+  var famKeys = Object.keys(fam).sort(function (a, b) { return fam[b].applied - fam[a].applied; });
+  new Chart(document.getElementById("chartFamily"), {
+    type: "bar",
+    data: { labels: famKeys, datasets: [{ data: famKeys.map(function (k) { return fam[k].applied; }),
+            backgroundColor: famKeys.map(function (k) { return fam[k].interview > 0 ? C.blue : C.gray; }),
+            borderRadius: 4, maxBarThickness: 20 }] },
+    options: { indexAxis: "y", responsive: true, maintainAspectRatio: false,
+      plugins: { tooltip: Object.assign({}, tip, { callbacks: { label: function (c) { var f = fam[c.label]; return f.applied + " applied · " + f.interview + " reached interview · " + f.rejected + " rejected"; } } }) },
+      scales: { x: { beginAtZero: true, grace: "10%", ticks: { precision: 0, stepSize: 5 }, grid: { color: C.border }, border: { display: false } },
+                y: { grid: { display: false }, border: { display: false }, ticks: { font: { size: 10 } } } } },
+    plugins: [valueLabels]
+  });
+
+  // ---- table ----------------------------------------------------------------
+  var bClass = { awaiting: "b-pending", ghosted: "b-ghost", rejected: "b-rejected", interview: "b-interview" };
+  var bText = { awaiting: "Awaiting", ghosted: "Ghosted", rejected: "Rejected", interview: "Interviewing" };
+  var rows = DATA.slice().sort(function (a, b) { return d(b.applied) - d(a.applied); });
+  var tb = document.getElementById("tbl-body");
+  rows.forEach(function (r) {
+    var st = statusOf(r);
+    var src = r.inbound ? ' <span class="badge b-inbound">Inbound</span>' : "";
+    var iv = (r.interview && st === "rejected") ? ' <span class="badge b-interview">Interviewed</span>' : "";
+    var tr = document.createElement("tr");
+    tr.innerHTML =
+      '<td data-label="Role">' + r.pos + '</td><td data-label="Location">' + r.loc + "</td>" +
+      '<td data-label="Status"><span class="badge ' + bClass[st] + '">' + bText[st] + "</span>" + src + iv + "</td>" +
+      '<td class="num" data-label="Applied">' + fmt(r.applied) + "</td>" +
+      '<td class="num" data-label="Decision">' + (r.rejected ? fmt(r.rejected) : "—") + "</td>" +
+      '<td class="num" data-label="Days">' + (r.rejected ? diffDays(r.applied, r.rejected) : "") + "</td>";
+    tb.appendChild(tr);
+  });
+
+  // ---- modals ---------------------------------------------------------------
+  function openM(id) { var m = document.getElementById(id); if (m) { m.classList.add("open"); m.setAttribute("aria-hidden", "false"); } }
+  function closeAll() { document.querySelectorAll(".modal.open").forEach(function (m) { m.classList.remove("open"); m.setAttribute("aria-hidden", "true"); }); }
+  document.querySelectorAll("[data-modal]").forEach(function (b) { b.addEventListener("click", function () { openM(b.getAttribute("data-modal")); }); });
+  document.querySelectorAll("[data-close]").forEach(function (b) { b.addEventListener("click", closeAll); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeAll(); });
+})();
+</script>
+
+</body>
+</html>
